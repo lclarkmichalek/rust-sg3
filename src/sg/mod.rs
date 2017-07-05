@@ -13,7 +13,7 @@ mod tests {
 
     fn read_sg3() -> Result<file::File> {
         let mut f = File::open("/home/laurie/Downloads/SprAmbient.sg3")?;
-        let file = file::read_file(&mut f)?;
+        let file = file::File::read(&mut f)?;
         Ok(file)
     }
 
