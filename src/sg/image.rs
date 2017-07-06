@@ -11,6 +11,7 @@ pub struct ImageRecord {
     pub width: i16,
     pub height: i16,
     pub image_type: u16,
+    // the first flag indicates external images
     pub flags: [u8; 4],
     pub bitmap_id: u8,
     pub alpha_offset: u32,
@@ -25,13 +26,7 @@ impl ImageRecord {
         r.seek(SeekFrom::Current(4))?;
         let invert_offset = read_i32(r)?;
         let width = read_i16(r)?;
-        if width < 0 {
-            return Err(Error::MalformedFile(String::from("negative width")));
-        }
         let height = read_i16(r)?;
-        if height < 0 {
-            return Err(Error::MalformedFile(String::from("negative height")));
-        }
 
         r.seek(SeekFrom::Current(26))?;
         let image_type = read_u16(r)?;
@@ -43,6 +38,16 @@ impl ImageRecord {
 
         let alpha_offset = if include_alpha { read_u32(r)? } else { 0 };
         let alpha_length = if include_alpha { read_u32(r)? } else { 0 };
+
+        if length < 0 {
+            return Err(Error::MalformedFile(format!("invalid length {:?}", length)));
+        }
+        if width < 0 {
+            return Err(Error::MalformedFile(format!("invalid width {:?}", width)));
+        }
+        if height < 0 {
+            return Err(Error::MalformedFile(format!("invalid height {:?}", height)));
+        }
 
         Ok(ImageRecord{
             offset: offset,
@@ -57,5 +62,11 @@ impl ImageRecord {
             alpha_offset: alpha_offset,
             alpha_length: alpha_length,
         })
+    }
+
+    pub fn load<T: Read + Seek>(&self, r: &mut T) -> Result<u8> {
+        r.seek(SeekFrom::Start(self.offset as u64 - self.flags[0] as u64))?;
+        let mut buf = vec![0, self.length];
+        Ok(0)
     }
 }

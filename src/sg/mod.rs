@@ -25,7 +25,8 @@ mod tests {
         };
         println!("{:?}", file);
         for i in 0..file.images.len() {
-            println!("{:?}", file.images[i].bitmap_id);
+            let img = &file.images[i];
+            println!("{:?}", img.length);
         }
         println!("filesize: {:?}", file.header.filesize);
         println!("max #bmp: {:?}", file.header.max_bitmap_records());
