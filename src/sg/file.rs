@@ -7,14 +7,14 @@ use sg::error::{Result, Error};
 const HEADER_SIZE: i64 = 680;
 
 #[derive(Debug)]
-pub struct File {
+pub struct SG3File {
     pub header: Header,
     pub bitmaps: Vec<BitmapRecord>,
     pub images: Vec<ImageRecord>,
 }
 
-impl File {
-    pub fn read<T: Read + Seek>(r: &mut T) -> Result<File> {
+impl SG3File {
+    pub fn read<T: Read + Seek>(r: &mut T) -> Result<SG3File> {
         let h = Header::read(r)?;
 
         let mut bitmaps: Vec<BitmapRecord> = Vec::with_capacity(h.num_bitmap_records as usize);
@@ -34,7 +34,7 @@ impl File {
             images.push(rec);
         }
 
-        Ok(File{
+        Ok(SG3File{
             header: h,
             bitmaps: bitmaps,
             images: images,

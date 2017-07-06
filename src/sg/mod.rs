@@ -11,9 +11,9 @@ mod tests {
     use sg::file;
     use sg::error::Result;
 
-    fn read_sg3() -> Result<file::File> {
+    fn read_sg3() -> Result<file::SG3File> {
         let mut f = File::open("/home/laurie/Downloads/SprAmbient.sg3")?;
-        let file = file::File::read(&mut f)?;
+        let file = file::SG3File::read(&mut f)?;
         Ok(file)
     }
 
