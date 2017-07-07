@@ -1,4 +1,6 @@
 use std::io::{Read, Seek, SeekFrom};
+use image;
+
 use util::*;
 use sg::error::{Result, Error};
 
@@ -68,5 +70,29 @@ impl ImageRecord {
         r.seek(SeekFrom::Start(self.offset as u64 - self.flags[0] as u64))?;
         let mut buf = vec![0, self.length];
         Ok(0)
+    }
+}
+
+struct ImageDecoder<T: Read + Seek> {
+    rec: ImageRecord,
+    r: T,
+}
+
+impl <T: Read + Seek> image::ImageDecoder for ImageDecoder<T> {
+    fn dimensions(&mut self) -> image::ImageResult<(u32, u32)> {
+        image::ImageResult::Ok((self.rec.width as u32, self.rec.height as u32))
+    }
+
+    fn colortype(&mut self) -> image::ImageResult<image::ColorType> {
+        // We take our 5,5,5,1 and return 8,8,8,8
+        image::ImageResult::Ok(image::ColorType::RGBA(8))
+    }
+
+    fn row_len(&mut self) -> image::ImageResult<usize> {
+        image::ImageResult::Ok(self.rec.width as usize)
+    }
+
+    fn read_scanline(&mut self, buf: &mut [u8]) -> image::ImageResult<u32> {
+        self.r.read_exact(&mut buf)?;
     }
 }
