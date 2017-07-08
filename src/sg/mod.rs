@@ -8,8 +8,11 @@ mod tests {
     use std::io::*;
     use std::fs::*;
 
+    use image;
+    use image::ImageDecoder;
+
     use sg::file;
-    use sg::image;
+    use sg::image::{ImageRecord, TransparentImageDecoder};
     use sg::error::Result;
 
     fn read_sg3() -> Result<file::SG3File> {
@@ -18,36 +21,52 @@ mod tests {
         Ok(file)
     }
 
-    fn read_image(img: &image::ImageRecord) -> Result<u8> {
+    fn read_image(img: &ImageRecord) -> Result<TransparentImageDecoder> {
         let mut f = File::open("/home/laurie/Downloads/SprAmbient.555")?;
-        let file = img.load(&mut f)?;
-        Ok(0)
+        let mut decoder = img.load(&mut f)?;
+        Ok(decoder)
+    }
+
+    fn write_image(dec: &mut TransparentImageDecoder, f: &mut File) -> Result<()> {
+        let mut enc = image::png::PNGEncoder::new(f);
+        let (w, h) = dec.dimensions()?;
+        let ct = dec.colortype()?;
+        let buf: Vec<u8> = match dec.read_image()? {
+            image::DecodingResult::U8(v) => v,
+            _ => panic!("not a u8"),
+        };
+        enc.encode(&buf, w, h, ct)?;
+        Ok(())
+    }
+
+    fn test_convert(output_filename: &str) -> Result<()> {
+        let file = read_sg3()?;
+        for img in file.images {
+            if img.length == 0 {
+                println!("no length");
+                continue;
+            }
+            if img.image_type != 256 {
+                println!("not 256: {:?}", img.image_type);
+                continue
+            }
+            println!("valid");
+            let mut dec = read_image(&img)?;
+            let mut out_file = File::open(output_filename)?;
+            write_image(&mut dec, &mut out_file)?;
+            println!("written image");
+            break;
+        }
+        Ok(())
     }
 
     #[test]
     fn test_read_header() {
-        let file = match read_sg3() {
+        match test_convert("/tmp/output.png") {
             Err(why) => panic!("couldn't open sg3 file: {}", why),
             Ok(h) => h,
         };
-        println!("{:?}", file);
-        for i in 0..file.images.len() {
-            let imgRec = &file.images[i];
-            println!("{:?}", imgRec);
-            if imgRec.length == 0 {
-                continue
-            }
-            let img = match read_image(&imgRec) {
-                Err(why) => panic!("couldn't read image: {}", why),
-                Ok(h) => h,
-            };
-            println!("img: {:?}", img);
-        }
-        println!("filesize: {:?}", file.header.filesize);
-        println!("max #bmp: {:?}", file.header.max_bitmap_records());
-        println!("#bmp: {:?}", file.header.num_bitmap_records);
-        println!("#img: {:?}", file.header.num_image_records);
-        println!("max #img: {:?}", file.header.max_image_records);
+        return;
     }
 }
 
