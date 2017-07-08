@@ -104,19 +104,18 @@ fn read_transparent_image(rec: &ImageRecord, input: &[u8], output: &mut [u8]) ->
         // if the 'control' byte is 255, the next byte is the number of bytes to skip. If not, it's
         // the number of bytes to read as 555 pixels
         let c = input[i];
-        let inp: &[u8] = match input_iter.next() {
-            None => return Err(Error::MalformedFile(String::from("ran out of file"))),
-            Some(bytes) => bytes,
-        };
 
-        if inp[0] == 255 {
-            skip = inp[1];
+        if c == 255 {
+            i += 1;
+            skip = input[i+1];
             continue
         }
-        output[0] = ((inp[0] | 0b00011111) << 3);
-        output[1] = ((inp[0] | 0b11100000) >> 2) | ((inp[1] | 0b00000011) << 6);
-        output[2] =                                ((inp[1] | 0b01111100) << 1);
-        output[3] = 0
+        output[0] = ((input[i] | 0b00011111) << 3);
+        output[1] = ((input[i] | 0b11100000) >> 2) | ((input[i+1] | 0b00000011) << 6);
+        output[2] =                                  ((input[i+1] | 0b01111100) << 1);
+        output[3] = 0;
+
+        i += 2;
     }
     Ok(output.len())
 }
