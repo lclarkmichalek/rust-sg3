@@ -12,31 +12,13 @@ mod tests {
     use image::ImageDecoder;
 
     use sg::file;
-    use sg::image::{ImageRecord, TransparentImageDecoder};
+    use sg::image::ImageRecord;
     use sg::error::Result;
 
     fn read_sg3() -> Result<file::SG3File> {
         let mut f = File::open("/home/laurie/Downloads/SprAmbient.sg3")?;
         let file = file::SG3File::read(&mut f)?;
         Ok(file)
-    }
-
-    fn read_image(img: &ImageRecord) -> Result<TransparentImageDecoder> {
-        let mut f = File::open("/home/laurie/Downloads/SprAmbient.555")?;
-        let mut decoder = img.load(&mut f)?;
-        Ok(decoder)
-    }
-
-    fn write_image(dec: &mut TransparentImageDecoder, f: &mut File) -> Result<()> {
-        let mut enc = image::png::PNGEncoder::new(f);
-        let (w, h) = dec.dimensions()?;
-        let ct = dec.colortype()?;
-        let buf: Vec<u8> = match dec.read_image()? {
-            image::DecodingResult::U8(v) => v,
-            _ => panic!("not a u8"),
-        };
-        enc.encode(&buf, w, h, ct)?;
-        Ok(())
     }
 
     fn test_convert(output_filename: &str) -> Result<()> {
@@ -57,9 +39,12 @@ mod tests {
                 continue;
             }
             println!("valid");
-            let mut dec = read_image(&img)?;
-            let mut out_file = File::create(output_filename)?;
-            write_image(&mut dec, &mut out_file)?;
+
+            let mut file555 = File::open("/home/laurie/Downloads/SprAmbient.555")?;
+            let mut image_data = img.load_image_data(&mut file555)?;
+            let mut filepng = File::create(output_filename)?;
+            let mut enc = image::png::PNGEncoder::new(filepng);
+            enc.encode(&image_data, img.width as u32, img.height as u32, image::ColorType::RGBA(8))?;
             println!("written image");
             break;
         }

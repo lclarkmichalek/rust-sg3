@@ -1,5 +1,4 @@
 use std::io::{Read, Seek, SeekFrom};
-use image;
 
 use util::*;
 use sg::error::{Result, Error};
@@ -66,17 +65,13 @@ impl ImageRecord {
         })
     }
 
-    pub fn load<T: Read + Seek>(&self, r: &mut T) -> Result<TransparentImageDecoder> {
+    pub fn load_image_data<T: Read + Seek>(&self, r: &mut T) -> Result<Vec<u8>> {
         r.seek(SeekFrom::Start(self.offset as u64 - self.flags[0] as u64))?;
         let mut input: Vec<u8> = vec![0; self.length as usize];
         r.read_exact(&mut input)?;
         let mut output: Vec<u8> = vec![0; 4 * (self.width as usize) * (self.height as usize)];
         read_transparent_image(&self, input.as_slice(), output.as_mut_slice())?;
-        Ok(TransparentImageDecoder{
-            rec: self,
-            buf: output,
-            curr_row: 0,
-        })
+        Ok(output)
     }
 }
 
@@ -136,34 +131,11 @@ fn read_transparent_image(rec: &ImageRecord, input_buf: &[u8], output_buf: &mut 
     Ok(output_buf.len())
 }
 
-pub struct TransparentImageDecoder<'a> {
-    rec: &'a ImageRecord,
-    buf: Vec<u8>,
-    curr_row: u16,
-}
-
-impl<'a> image::ImageDecoder for TransparentImageDecoder<'a> {
-    fn dimensions(&mut self) -> image::ImageResult<(u32, u32)> {
-        Ok((self.rec.width as u32, self.rec.height as u32))
-    }
-
-    fn colortype(&mut self) -> image::ImageResult<image::ColorType> {
-        // We take our 5,5,5 and return 8,8,8,8
-        Ok(image::ColorType::RGBA(8))
-    }
-
-    fn row_len(&mut self) -> image::ImageResult<usize> {
-        Ok(4 * self.rec.width as usize)
-    }
-
-    fn read_scanline(&mut self, buf: &mut [u8]) -> image::ImageResult<u32> {
-        let start = self.curr_row as usize * self.rec.width as usize * 4;
-        let end = start + buf.len() as usize;
-        buf.clone_from_slice(&self.buf[start .. end]);
-        Ok(buf.len() as u32)
-    }
-
-    fn read_image(&mut self) -> image::ImageResult<image::DecodingResult> {
-        Ok(image::DecodingResult::U8(self.buf.clone()))
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_read_header() {
+        return;
     }
 }
+
