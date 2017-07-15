@@ -70,7 +70,7 @@ impl ImageRecord {
         r.seek(SeekFrom::Start(self.offset as u64 - self.flags[0] as u64))?;
         let mut input: Vec<u8> = vec![0; self.length as usize];
         r.read_exact(&mut input)?;
-        let mut output: Vec<u8> = vec![0; (4 * self.width * self.height) as usize];
+        let mut output: Vec<u8> = vec![0; 4 * (self.width as usize) * (self.height as usize)];
         read_transparent_image(&self, input.as_slice(), output.as_mut_slice())?;
         Ok(TransparentImageDecoder{
             rec: self,
@@ -80,44 +80,60 @@ impl ImageRecord {
     }
 }
 
-fn read_transparent_image(rec: &ImageRecord, input: &[u8], output: &mut [u8]) -> Result<usize> {
-    if input.len() != rec.length as usize {
-        return Err(Error::MalformedFile(format!("buffer too short {:?} != {:?}", rec.length, input.len())));
+fn read_transparent_image(rec: &ImageRecord, input_buf: &[u8], output_buf: &mut [u8]) -> Result<usize> {
+    if input_buf.len() != rec.length as usize {
+        return Err(Error::MalformedFile(format!("buffer too short {:?} != {:?}", rec.length, input_buf.len())));
     }
-    if output.len() % 4 != 0 {
-        return Err(Error::MalformedFile(format!("output was not multiple of 4: {:?}", input.len())));
+    if output_buf.len() % 4 != 0 {
+        return Err(Error::MalformedFile(format!("output was not multiple of 4: {:?}", output_buf.len())));
     }
 
     let mut skip: u8 = 0;
-    let mut i = 0;
+    let mut read: u8 = 0;
+    let mut input = input_buf.iter();
 
-    for output in output.chunks_mut(4) {
-        if skip != 0 {
+    for output in output_buf.chunks_mut(4) {
+        if skip == 0 && read == 0 {
+            let c = match input.next() {
+                None => return Err(Error::MalformedImage()),
+                Some(b) => *b,
+            };
+            if c == 255 {
+                skip = match input.next() {
+                    None => return Err(Error::MalformedImage()),
+                    Some(b) => *b,
+                };
+            } else {
+                read = c;
+            }
+        }
+
+        if read != 0 {
+            let p = match input.next() {
+                None => return Err(Error::MalformedImage()),
+                Some(b) => *b,
+            };
+            let q = match input.next() {
+                None => return Err(Error::MalformedImage()),
+                Some(b) => *b,
+            };
+            let c: u32 = (p as u32) | (q as u32) << 8;
+            let mut rgba: u32 = 0xff000000;
+            rgba |= ((c & 0x7c00) << 9) | ((c & 0x7000) << 4);
+            rgba |= ((c & 0x3e0) << 6 ) | ((c & 0x300)      );
+            rgba |= ((c & 0x1f) << 3  ) | ((c & 0x1c) >> 2  );
+            output[2] = (rgba & 0x000000ff)        as u8;
+            output[1] = ((rgba & 0x0000ff00) >> 8 ) as u8;
+            output[0] = ((rgba & 0x00ff0000) >> 16) as u8;
+            output[3] = 255;
+
+            read -= 1;
+        } else if skip != 0 {
             skip -= 1;
-            continue;
         }
-
-        if i < input.len() {
-            return Err(Error::MalformedFile(String::from("ran out of file")));
-        }
-
-        // if the 'control' byte is 255, the next byte is the number of bytes to skip. If not, it's
-        // the number of bytes to read as 555 pixels
-        let c = input[i];
-
-        if c == 255 {
-            i += 1;
-            skip = input[i+1];
-            continue
-        }
-        output[0] = ((input[i] | 0b00011111) << 3);
-        output[1] = ((input[i] | 0b11100000) >> 2) | ((input[i+1] | 0b00000011) << 6);
-        output[2] =                                  ((input[i+1] | 0b01111100) << 1);
-        output[3] = 0;
-
-        i += 2;
     }
-    Ok(output.len())
+
+    Ok(output_buf.len())
 }
 
 pub struct TransparentImageDecoder<'a> {

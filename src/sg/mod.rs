@@ -41,7 +41,9 @@ mod tests {
 
     fn test_convert(output_filename: &str) -> Result<()> {
         let file = read_sg3()?;
+        let mut i: u32 = 0;
         for img in file.images {
+            i += 1;
             if img.length == 0 {
                 println!("no length");
                 continue;
@@ -50,9 +52,13 @@ mod tests {
                 println!("not 256: {:?}", img.image_type);
                 continue
             }
+
+            if i != 4631 {
+                continue;
+            }
             println!("valid");
             let mut dec = read_image(&img)?;
-            let mut out_file = File::open(output_filename)?;
+            let mut out_file = File::create(output_filename)?;
             write_image(&mut dec, &mut out_file)?;
             println!("written image");
             break;

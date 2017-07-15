@@ -12,6 +12,7 @@ pub enum Error {
     IoError(io::Error),
     ImageError(image::ImageError),
     MalformedFile(String),
+    MalformedImage(),
 }
 
 impl fmt::Display for Error {
@@ -20,6 +21,7 @@ impl fmt::Display for Error {
             &Error::IoError(ref e) => e.fmt(f),
             &Error::ImageError(ref e) => e.fmt(f),
             &Error::MalformedFile(ref e) => write!(f, "File was malformed: {:?}", e),
+            &Error::MalformedImage() => write!(f, "Image byte stream was malformed"),
         }
     }
 }
@@ -30,6 +32,7 @@ impl error::Error for Error {
             Error::IoError(..) => &"IO error",
             Error::ImageError(..) => &"Image error",
             Error::MalformedFile(..) => &"Malformed file",
+            Error::MalformedImage() => &"Malformed image",
         }
     }
 
